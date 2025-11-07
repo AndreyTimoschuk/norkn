@@ -149,6 +149,7 @@ elif [ "$FIREWALL_TYPE" = "iptables" ]; then
         netfilter-persistent save >/dev/null 2>&1
     elif command -v iptables-save &> /dev/null; then
         if [[ -f /etc/debian_version ]]; then
+            mkdir -p /etc/iptables 2>/dev/null
             iptables-save > /etc/iptables/rules.v4 2>/dev/null
             ip6tables-save > /etc/iptables/rules.v6 2>/dev/null
         elif [[ -f /etc/redhat-release ]]; then
