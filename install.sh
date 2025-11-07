@@ -101,15 +101,15 @@ case $fw_choice in
                 echo -e "${YELLOW}Установка отменена${NC}"
                 exit 0
             fi
-        # Check if iptables has any rules at all (active iptables)
-        elif iptables -L INPUT -n 2>/dev/null | grep -v "^Chain\|^target" | grep -q .; then
+        # Check if iptables has non-UFW rules (real iptables rules, not UFW's)
+        elif iptables -L INPUT -n 2>/dev/null | grep -v "^Chain\|^target\|^ufw-" | grep -q .; then
             echo ""
             echo -e "${YELLOW}╔════════════════════════════════════════════════════════════╗${NC}"
-            echo -e "${YELLOW}║  ВНИМАНИЕ: Обнаружены активные правила iptables!         ║${NC}"
+            echo -e "${YELLOW}║  ВНИМАНИЕ: Обнаружены правила iptables (не от UFW)!      ║${NC}"
             echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${NC}"
             echo ""
-            echo -e "${YELLOW}На этой системе уже используется iptables с правилами.${NC}"
-            echo -e "${YELLOW}UFW и iptables могут конфликтовать.${NC}"
+            echo -e "${YELLOW}На этой системе уже используются правила iptables.${NC}"
+            echo -e "${YELLOW}UFW и прямые правила iptables могут конфликтовать.${NC}"
             echo ""
             read -p "Всё равно установить UFW? [y/N]: " force_ufw
             if [[ ! "$force_ufw" =~ ^[Yy]$ ]]; then
@@ -150,8 +150,12 @@ case $fw_choice in
                     echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${NC}"
                     echo ""
                     echo -e "${YELLOW}На этой системе активен UFW с $rules_count правилами.${NC}"
-                    echo -e "${YELLOW}UFW и iptables могут конфликтовать.${NC}"
-                    echo -e "${YELLOW}Рекомендуется отключить UFW: sudo ufw disable${NC}"
+                    echo -e "${YELLOW}UFW использует iptables под капотом, поэтому прямое${NC}"
+                    echo -e "${YELLOW}управление iptables будет конфликтовать с UFW.${NC}"
+                    echo ""
+                    echo -e "${YELLOW}Перед установкой iptables необходимо:${NC}"
+                    echo -e "  1. Отключить UFW: ${GREEN}sudo ufw disable${NC}"
+                    echo -e "  2. Затем запустить установку заново"
                     echo ""
                     read -p "Всё равно установить iptables? [y/N]: " force_iptables
                     if [[ ! "$force_iptables" =~ ^[Yy]$ ]]; then
@@ -166,7 +170,10 @@ case $fw_choice in
                     echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${NC}"
                     echo ""
                     echo -e "${YELLOW}UFW активен, но правил нет.${NC}"
-                    echo -e "${YELLOW}Рекомендуется отключить UFW перед установкой iptables.${NC}"
+                    echo -e "${YELLOW}UFW использует iptables под капотом, поэтому прямое${NC}"
+                    echo -e "${YELLOW}управление iptables будет конфликтовать.${NC}"
+                    echo ""
+                    echo -e "${YELLOW}Рекомендуется отключить UFW: ${GREEN}sudo ufw disable${NC}"
                     echo ""
                     read -p "Продолжить? [y/N]: " continue_anyway
                     if [[ ! "$continue_anyway" =~ ^[Yy]$ ]]; then
