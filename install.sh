@@ -85,10 +85,97 @@ case $fw_choice in
     1)
         FIREWALL_TYPE="ufw"
         echo -e "${GREEN}✓ Выбрано: UFW${NC}"
+        
+        # Check if iptables rules already exist
+        if iptables -L INPUT -n 2>/dev/null | grep -q "BLACKLIST"; then
+            echo ""
+            echo -e "${YELLOW}╔════════════════════════════════════════════════════════════╗${NC}"
+            echo -e "${YELLOW}║  ВНИМАНИЕ: Обнаружены правила iptables с BLACKLIST!      ║${NC}"
+            echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${NC}"
+            echo ""
+            echo -e "${YELLOW}У вас уже установлены правила через iptables.${NC}"
+            echo -e "${YELLOW}Рекомендуется сначала удалить их, чтобы избежать конфликтов.${NC}"
+            echo ""
+            read -p "Продолжить установку UFW? [y/N]: " continue_ufw
+            if [[ ! "$continue_ufw" =~ ^[Yy]$ ]]; then
+                echo -e "${YELLOW}Установка отменена${NC}"
+                exit 0
+            fi
+        # Check if iptables has any rules at all (active iptables)
+        elif iptables -L INPUT -n 2>/dev/null | grep -v "^Chain\|^target" | grep -q .; then
+            echo ""
+            echo -e "${YELLOW}╔════════════════════════════════════════════════════════════╗${NC}"
+            echo -e "${YELLOW}║  ВНИМАНИЕ: Обнаружены активные правила iptables!         ║${NC}"
+            echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${NC}"
+            echo ""
+            echo -e "${YELLOW}На этой системе уже используется iptables с правилами.${NC}"
+            echo -e "${YELLOW}UFW и iptables могут конфликтовать.${NC}"
+            echo ""
+            read -p "Всё равно установить UFW? [y/N]: " force_ufw
+            if [[ ! "$force_ufw" =~ ^[Yy]$ ]]; then
+                echo -e "${YELLOW}Установка отменена${NC}"
+                exit 0
+            fi
+        fi
         ;;
     2)
         FIREWALL_TYPE="iptables"
         echo -e "${GREEN}✓ Выбрано: iptables${NC}"
+        
+        # Check if UFW is installed and active
+        if command -v ufw &> /dev/null; then
+            # Check for our Blacklist rules
+            if ufw status 2>/dev/null | grep -q "Blacklist"; then
+                echo ""
+                echo -e "${YELLOW}╔════════════════════════════════════════════════════════════╗${NC}"
+                echo -e "${YELLOW}║  ВНИМАНИЕ: UFW содержит правила Blacklist!               ║${NC}"
+                echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${NC}"
+                echo ""
+                echo -e "${YELLOW}У вас уже установлены правила через UFW.${NC}"
+                echo -e "${YELLOW}Рекомендуется сначала удалить их, чтобы избежать конфликтов.${NC}"
+                echo ""
+                read -p "Продолжить установку iptables? [y/N]: " continue_iptables
+                if [[ ! "$continue_iptables" =~ ^[Yy]$ ]]; then
+                    echo -e "${YELLOW}Установка отменена${NC}"
+                    exit 0
+                fi
+            # Check if UFW is active with any rules
+            elif ufw status 2>/dev/null | grep -q "Status: active"; then
+                # Check if there are any rules at all
+                rules_count=$(ufw status numbered 2>/dev/null | grep -c "^\[")
+                if [ "$rules_count" -gt 0 ]; then
+                    echo ""
+                    echo -e "${YELLOW}╔════════════════════════════════════════════════════════════╗${NC}"
+                    echo -e "${YELLOW}║  ВНИМАНИЕ: UFW активен и содержит правила!               ║${NC}"
+                    echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${NC}"
+                    echo ""
+                    echo -e "${YELLOW}На этой системе активен UFW с $rules_count правилами.${NC}"
+                    echo -e "${YELLOW}UFW и iptables могут конфликтовать.${NC}"
+                    echo -e "${YELLOW}Рекомендуется отключить UFW: sudo ufw disable${NC}"
+                    echo ""
+                    read -p "Всё равно установить iptables? [y/N]: " force_iptables
+                    if [[ ! "$force_iptables" =~ ^[Yy]$ ]]; then
+                        echo -e "${YELLOW}Установка отменена${NC}"
+                        exit 0
+                    fi
+                else
+                    # UFW active but no rules
+                    echo ""
+                    echo -e "${YELLOW}╔════════════════════════════════════════════════════════════╗${NC}"
+                    echo -e "${YELLOW}║  ВНИМАНИЕ: UFW активен без правил!                       ║${NC}"
+                    echo -e "${YELLOW}╚════════════════════════════════════════════════════════════╝${NC}"
+                    echo ""
+                    echo -e "${YELLOW}UFW активен, но правил нет.${NC}"
+                    echo -e "${YELLOW}Рекомендуется отключить UFW перед установкой iptables.${NC}"
+                    echo ""
+                    read -p "Продолжить? [y/N]: " continue_anyway
+                    if [[ ! "$continue_anyway" =~ ^[Yy]$ ]]; then
+                        echo -e "${YELLOW}Установка отменена${NC}"
+                        exit 0
+                    fi
+                fi
+            fi
+        fi
         ;;
     *)
         echo -e "${RED}Неверный выбор. Выход.${NC}"
