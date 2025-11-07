@@ -1,108 +1,94 @@
-# Firewall Blacklist Auto-Installer
+# NO, THANKS RKN
 
-Automatic firewall blacklist management with interactive installation. Supports both UFW and iptables.
+**Автоматический блеклист для фаервола** с интерактивной установкой. Поддержка UFW и iptables.
 
-## Quick Install
+Блокирует подсети российских государственных организаций на основе данных из [C24Be/AS_Network_List](https://github.com/C24Be/AS_Network_List).
 
-```bash
-wget https://raw.githubusercontent.com/YOUR_USERNAME/firewall-blacklist/main/install.sh -O install.sh && chmod +x install.sh && sudo bash install.sh
-```
-
-Or with curl:
+## Быстрая установка
 
 ```bash
-curl -O https://raw.githubusercontent.com/YOUR_USERNAME/firewall-blacklist/main/install.sh && chmod +x install.sh && sudo bash install.sh
+wget https://raw.githubusercontent.com/AndreyTimoschuk/norkn/main/install.sh -O install.sh && chmod +x install.sh && sudo bash install.sh
 ```
 
-## Features
+Или с curl:
 
-- 🔥 **Multi-Firewall Support** - Works with UFW and iptables
-- ⚡ **Interactive Installation** - Easy setup with guided prompts
-- ⏰ **Flexible Scheduling** - Choose when to update blacklist
-- 🔄 **Auto Updates** - Automatic blacklist updates via cron
-- 📊 **Progress Tracking** - Real-time progress display
-- 📝 **Detailed Logging** - All operations logged
-- 🛡️ **Smart Management** - Removes old rules before adding new ones
+```bash
+curl -O https://raw.githubusercontent.com/AndreyTimoschuk/norkn/main/install.sh && chmod +x install.sh && sudo bash install.sh
+```
 
-## What It Does
+## Удаление
 
-The installer will:
+```bash
+wget https://raw.githubusercontent.com/AndreyTimoschuk/norkn/main/uninstall.sh -O uninstall.sh && chmod +x uninstall.sh && sudo bash uninstall.sh
+```
 
-1. Ask you to choose between UFW or iptables
-2. Install and configure your chosen firewall
-3. Let you set update schedule (daily, weekly, or manual)
-4. Install the blacklist management script
-5. Optionally run the first update immediately
+Или с curl:
 
-## Requirements
+```bash
+curl -O https://raw.githubusercontent.com/AndreyTimoschuk/norkn/main/uninstall.sh && chmod +x uninstall.sh && sudo bash uninstall.sh
+```
 
-- Linux system (Debian/Ubuntu or RHEL/CentOS)
-- Root/sudo access
-- `curl` or `wget`
-- Internet connection
+## Возможности
 
-## Manual Usage
+- 🔥 **Поддержка UFW и iptables** - выбор при установке
+- ⚡ **Интерактивная установка** - простая настройка
+- ⏰ **Гибкое расписание** - выбор времени обновлений
+- 🔄 **Автообновления** - через cron
+- 📊 **Прогресс в реальном времени** - видно что происходит
+- 📝 **Детальное логирование** - все операции в логах
+- 🛡️ **Умное управление** - удаление старых правил перед добавлением новых
 
-After installation, you can manually run:
+## Что делает установщик
+
+1. Выбор фаервола (UFW или iptables)
+2. Автоматическая установка и настройка
+3. Настройка расписания обновлений
+4. Установка скрипта управления блеклистом
+5. Опционально - немедленный запуск
+
+## Требования
+
+- Linux (Debian/Ubuntu или RHEL/CentOS)
+- Root/sudo доступ
+- `curl` или `wget`
+- Интернет
+
+## Ручной запуск
+
+После установки:
 
 ```bash
 sudo /usr/local/bin/firewall-blacklist.sh
 ```
 
-View logs:
+Просмотр логов:
 
 ```bash
 sudo tail -f /var/log/firewall_blacklist.log
 ```
 
-Check rules:
+Проверка правил:
 
 ```bash
-# For UFW
+# UFW
 sudo ufw status | grep Blacklist
 
-# For iptables
+# iptables
 sudo iptables -L INPUT -n | grep BLACKLIST
 ```
 
-## Uninstall
 
-Remove the script:
+Деинсталлятор удалит:
+- Задания cron
+- Правила фаервола (Blacklist)
+- Установленный скрипт
+- Конфигурацию logrotate
+- Лог-файлы (опционально)
 
-```bash
-sudo rm /usr/local/bin/firewall-blacklist.sh
-```
+## Источник данных
 
-Remove cron job:
+Блеклист генерируется из [C24Be/AS_Network_List](https://github.com/C24Be/AS_Network_List) - репозитория с подсетями российских государственных организаций. Обновляется ежедневно.
 
-```bash
-sudo crontab -e
-# Remove the line containing firewall-blacklist.sh
-```
+## Лицензия
 
-Remove rules (UFW):
-
-```bash
-sudo ufw status numbered | grep "Blacklist" | awk -F'[][]' '{print $2}' | sort -nr | while read n; do sudo ufw --force delete $n; done
-```
-
-Remove rules (iptables):
-
-```bash
-sudo iptables-save | grep "BLACKLIST" | while read -r line; do
-    rule=$(echo "$line" | sed 's/-A /-D /')
-    eval "sudo iptables $rule"
-done
-sudo netfilter-persistent save
-```
-
-## Default Blacklist Source
-
-Uses: [C24Be/AS_Network_List](https://github.com/C24Be/AS_Network_List)
-
-To change the source, edit `/usr/local/bin/firewall-blacklist.sh` and modify the `BLACKLIST_URL` variable.
-
-## License
-
-MIT License - See LICENSE file
-
+MIT License - См. файл LICENSE
