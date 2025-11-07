@@ -249,10 +249,16 @@ cleanup_old_rules() {
         rm -f "$current_rules_file"
         
     elif [[ "$FIREWALL_TYPE" == "iptables" ]]; then
-        # Remove existing blacklist rules
+        # Remove existing IPv4 blacklist rules
         iptables-save | grep "BLACKLIST" | while read -r line; do
             rule=$(echo "$line" | sed 's/-A /-D /')
             eval "iptables $rule" 2>> "$LOG_FILE"
+        done
+        
+        # Remove existing IPv6 blacklist rules
+        ip6tables-save | grep "BLACKLIST" | while read -r line; do
+            rule=$(echo "$line" | sed 's/-A /-D /')
+            eval "ip6tables $rule" 2>> "$LOG_FILE"
         done
     fi
 }
@@ -298,12 +304,23 @@ apply_firewall_rules() {
             fi
             
         elif [[ "$FIREWALL_TYPE" == "iptables" ]]; then
-            # Check if rule exists
-            if ! iptables -C INPUT -s "$subnet" -j DROP -m comment --comment "BLACKLIST" 2>/dev/null; then
-                iptables -I INPUT -s "$subnet" -j DROP -m comment --comment "BLACKLIST"
-                ((added_count++))
+            # Detect IPv4 vs IPv6
+            if [[ "$subnet" =~ : ]]; then
+                # IPv6
+                if ! ip6tables -C INPUT -s "$subnet" -j DROP -m comment --comment "BLACKLIST" 2>/dev/null; then
+                    ip6tables -I INPUT -s "$subnet" -j DROP -m comment --comment "BLACKLIST" 2>> "$LOG_FILE"
+                    ((added_count++))
+                else
+                    ((skipped_count++))
+                fi
             else
-                ((skipped_count++))
+                # IPv4
+                if ! iptables -C INPUT -s "$subnet" -j DROP -m comment --comment "BLACKLIST" 2>/dev/null; then
+                    iptables -I INPUT -s "$subnet" -j DROP -m comment --comment "BLACKLIST" 2>> "$LOG_FILE"
+                    ((added_count++))
+                else
+                    ((skipped_count++))
+                fi
             fi
         fi
         
@@ -319,14 +336,22 @@ apply_firewall_rules() {
     if [[ "$FIREWALL_TYPE" == "iptables" ]]; then
         if command -v netfilter-persistent &> /dev/null; then
             netfilter-persistent save >> "$LOG_FILE" 2>&1
+            log "Правила сохранены через netfilter-persistent"
         elif command -v iptables-save &> /dev/null; then
             if [[ -f /etc/debian_version ]]; then
-                iptables-save > /etc/iptables/rules.v4
+                # Create directory if not exists
+                mkdir -p /etc/iptables
+                iptables-save > /etc/iptables/rules.v4 2>> "$LOG_FILE"
+                ip6tables-save > /etc/iptables/rules.v6 2>> "$LOG_FILE"
+                log "Правила сохранены в /etc/iptables/"
             elif [[ -f /etc/redhat-release ]]; then
                 service iptables save >> "$LOG_FILE" 2>&1
+                service ip6tables save >> "$LOG_FILE" 2>&1
+                log "Правила сохранены через service"
             fi
+        else
+            log "ВНИМАНИЕ: iptables-save не найден, правила не сохранены на диск"
         fi
-        log "Правила iptables сохранены"
     fi
 }
 
