@@ -11,11 +11,26 @@ NC='\033[0m' # No Color
 SCRIPT_PATH="/usr/local/bin/firewall-blacklist.sh"
 LOG_FILE="/var/log/firewall_blacklist.log"
 
-# Check if running as root
-if [[ $EUID -ne 0 ]] || [[ $(id -u) -ne 0 ]]; then
+# Check if running as root - multiple methods
+ROOT_CHECK_FAILED=0
+
+if [[ $EUID -ne 0 ]]; then
+    ROOT_CHECK_FAILED=1
+fi
+
+if [[ $(id -u) -ne 0 ]]; then
+    ROOT_CHECK_FAILED=1
+fi
+
+if ! touch /etc/.test_write 2>/dev/null; then
+    ROOT_CHECK_FAILED=1
+fi
+rm -f /etc/.test_write 2>/dev/null
+
+if [[ $ROOT_CHECK_FAILED -eq 1 ]]; then
    echo ""
    echo -e "${RED}╔════════════════════════════════════════════════════════════╗${NC}"
-   echo -e "${RED}║  ОШИБКА: Скрипт должен быть запущен от имени root!       ║${NC}"
+   echo -e "${RED}║  ОШИБКА: Скрипт ДОЛЖЕН быть запущен от root!             ║${NC}"
    echo -e "${RED}╚════════════════════════════════════════════════════════════╝${NC}"
    echo ""
    echo -e "${YELLOW}Используйте:${NC}"
@@ -23,20 +38,6 @@ if [[ $EUID -ne 0 ]] || [[ $(id -u) -ne 0 ]]; then
    echo ""
    exit 1
 fi
-
-# Verify write permissions
-if ! touch /usr/local/bin/.test_write 2>/dev/null; then
-   echo ""
-   echo -e "${RED}╔════════════════════════════════════════════════════════════╗${NC}"
-   echo -e "${RED}║  ОШИБКА: Нет прав на изменение системных файлов!         ║${NC}"
-   echo -e "${RED}╚════════════════════════════════════════════════════════════╝${NC}"
-   echo ""
-   echo -e "${YELLOW}Запустите с sudo:${NC}"
-   echo -e "  ${GREEN}sudo bash uninstall.sh${NC}"
-   echo ""
-   exit 1
-fi
-rm -f /usr/local/bin/.test_write 2>/dev/null
 
 clear
 echo -e "${BLUE}╔════════════════════════════════════════════════════════════╗${NC}"
